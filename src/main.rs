@@ -1,23 +1,17 @@
-use axum::{
-    http::StatusCode,
-    response::Json as ResponseJson,
-    routing::post,
-    Json, Router,
-};
+use axum::{http::StatusCode, response::Json as ResponseJson, routing::post, Json, Router};
 use base64::{engine::general_purpose, Engine as _};
+use bs58;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
     system_instruction,
 };
-use spl_token::instruction::{initialize_mint, mint_to, transfer};
 use spl_associated_token_account::get_associated_token_address;
+use spl_token::instruction::{initialize_mint, mint_to, transfer};
 use std::str::FromStr;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
-use bs58;
-
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -85,13 +79,18 @@ struct AccountInfo {
 
 async fn create_token(
     Json(payload): Json<CreateTokenRequest>,
-) -> Result<ResponseJson<ApiResponse<InstructionResponse>>, (StatusCode, ResponseJson<ApiResponse<InstructionResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<InstructionResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<InstructionResponse>>),
+> {
     let mint_authority = match Pubkey::from_str(&payload.mint_authority) {
         Ok(key) => key,
         Err(_) => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                ResponseJson(ApiResponse::error("Invalid mint authority address".to_string())),
+                ResponseJson(ApiResponse::error(
+                    "Invalid mint authority address".to_string(),
+                )),
             ));
         }
     };
@@ -114,7 +113,8 @@ async fn create_token(
         &mint_authority,
         Some(&mint_authority),
         payload.decimals,
-    ).unwrap();
+    )
+    .unwrap();
 
     let accounts: Vec<AccountInfo> = instruction
         .accounts
@@ -145,7 +145,10 @@ struct MintTokenRequest {
 
 async fn mint_token(
     Json(payload): Json<MintTokenRequest>,
-) -> Result<ResponseJson<ApiResponse<InstructionResponse>>, (StatusCode, ResponseJson<ApiResponse<InstructionResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<InstructionResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<InstructionResponse>>),
+> {
     let mint = match Pubkey::from_str(&payload.mint) {
         Ok(key) => key,
         Err(_) => {
@@ -161,7 +164,9 @@ async fn mint_token(
         Err(_) => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                ResponseJson(ApiResponse::error("Invalid destination address".to_string())),
+                ResponseJson(ApiResponse::error(
+                    "Invalid destination address".to_string(),
+                )),
             ));
         }
     };
@@ -183,7 +188,8 @@ async fn mint_token(
         &authority,
         &[],
         payload.amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let accounts: Vec<AccountInfo> = instruction
         .accounts
@@ -219,7 +225,10 @@ struct SignMessageResponse {
 
 async fn sign_message(
     Json(payload): Json<SignMessageRequest>,
-) -> Result<ResponseJson<ApiResponse<SignMessageResponse>>, (StatusCode, ResponseJson<ApiResponse<SignMessageResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<SignMessageResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<SignMessageResponse>>),
+> {
     if payload.message.is_empty() || payload.secret.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -259,7 +268,6 @@ async fn sign_message(
     Ok(ResponseJson(ApiResponse::success(response)))
 }
 
-
 #[derive(Deserialize)]
 struct VerifyMessageRequest {
     message: String,
@@ -276,7 +284,10 @@ struct VerifyMessageResponse {
 
 async fn verify_message(
     Json(payload): Json<VerifyMessageRequest>,
-) -> Result<ResponseJson<ApiResponse<VerifyMessageResponse>>, (StatusCode, ResponseJson<ApiResponse<VerifyMessageResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<VerifyMessageResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<VerifyMessageResponse>>),
+> {
     if payload.message.is_empty() || payload.signature.is_empty() || payload.pubkey.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -342,7 +353,10 @@ struct SendSolResponse {
 
 async fn send_sol(
     Json(payload): Json<SendSolRequest>,
-) -> Result<ResponseJson<ApiResponse<SendSolResponse>>, (StatusCode, ResponseJson<ApiResponse<SendSolResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<SendSolResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<SendSolResponse>>),
+> {
     let from_pubkey = match Pubkey::from_str(&payload.from) {
         Ok(key) => key,
         Err(_) => {
@@ -366,7 +380,9 @@ async fn send_sol(
     if payload.lamports == 0 {
         return Err((
             StatusCode::BAD_REQUEST,
-            ResponseJson(ApiResponse::error("Amount must be greater than 0".to_string())),
+            ResponseJson(ApiResponse::error(
+                "Amount must be greater than 0".to_string(),
+            )),
         ));
     }
 
@@ -386,7 +402,6 @@ async fn send_sol(
 
     Ok(ResponseJson(ApiResponse::success(response)))
 }
-
 
 #[derive(Deserialize)]
 struct SendTokenRequest {
@@ -408,11 +423,16 @@ struct TokenAccountInfo {
     pubkey: String,
     #[serde(rename = "isSigner")]
     is_signer: bool,
+    #[serde(rename = "isWritable")]
+    is_writable: bool,
 }
 
 async fn send_token(
     Json(payload): Json<SendTokenRequest>,
-) -> Result<ResponseJson<ApiResponse<SendTokenResponse>>, (StatusCode, ResponseJson<ApiResponse<SendTokenResponse>>)> {
+) -> Result<
+    ResponseJson<ApiResponse<SendTokenResponse>>,
+    (StatusCode, ResponseJson<ApiResponse<SendTokenResponse>>),
+> {
     let owner = match Pubkey::from_str(&payload.owner) {
         Ok(key) => key,
         Err(_) => {
@@ -428,7 +448,9 @@ async fn send_token(
         Err(_) => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                ResponseJson(ApiResponse::error("Invalid destination address".to_string())),
+                ResponseJson(ApiResponse::error(
+                    "Invalid destination address".to_string(),
+                )),
             ));
         }
     };
@@ -446,7 +468,9 @@ async fn send_token(
     if payload.amount == 0 {
         return Err((
             StatusCode::BAD_REQUEST,
-            ResponseJson(ApiResponse::error("Amount must be greater than 0".to_string())),
+            ResponseJson(ApiResponse::error(
+                "Amount must be greater than 0".to_string(),
+            )),
         ));
     }
 
@@ -460,7 +484,8 @@ async fn send_token(
         &owner,
         &[],
         payload.amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let accounts: Vec<TokenAccountInfo> = instruction
         .accounts
@@ -468,6 +493,7 @@ async fn send_token(
         .map(|acc| TokenAccountInfo {
             pubkey: acc.pubkey.to_string(),
             is_signer: acc.is_signer,
+            is_writable: acc.is_writable,
         })
         .collect();
 
@@ -494,7 +520,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
-    
+
     let listener = TcpListener::bind(&addr).await?;
     println!("Solana HTTP Server listening on http://localhost:{}", port);
     println!("Available endpoints:");
@@ -505,7 +531,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  POST /message/verify - Verify a signed message");
     println!("  POST /send/sol - Create SOL transfer instruction");
     println!("  POST /send/token - Create token transfer instruction");
-    
+
     axum::serve(listener, app).await?;
     Ok(())
 }
