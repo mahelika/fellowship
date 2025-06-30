@@ -105,8 +105,6 @@ async fn create_token(
         }
     };
 
-    // let rent_pubkey = solana_sdk::sysvar::rent::id();
-
     let instruction = initialize_mint(
         &spl_token::id(),
         &mint,
@@ -180,6 +178,15 @@ async fn mint_token(
             ));
         }
     };
+
+    if payload.amount == 0 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            ResponseJson(ApiResponse::error(
+                "Amount must be greater than 0".to_string(),
+            )),
+        ));
+    }
 
     let instruction = mint_to(
         &spl_token::id(),
