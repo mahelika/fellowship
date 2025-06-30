@@ -73,9 +73,7 @@ struct InstructionResponse {
 #[derive(Serialize)]
 struct AccountInfo {
     pubkey: String,
-    #[serde(rename = "isSigner")]
     is_signer: bool,
-    #[serde(rename = "isWritable")]
     is_writable: bool,
 }
 
@@ -106,6 +104,8 @@ async fn create_token(
             ));
         }
     };
+
+    // let rent_pubkey = solana_sdk::sysvar::rent::id();
 
     let instruction = initialize_mint(
         &spl_token::id(),
